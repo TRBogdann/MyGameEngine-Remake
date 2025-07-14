@@ -2,7 +2,8 @@
 #include "shader.h"
 #include <iostream>
 #include <sstream>
-
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 
  std::string FileToString(const std::ifstream &file)
@@ -100,6 +101,11 @@ void Shader::setUniform1i(std::string name,int slot)
     glUniform1i((findUniform(name)),slot);
 }
 
+void Shader::setUniformMat4(std::string name, const glm::mat4& matrix)
+{
+    glUniformMatrix4fv(findUniform(name), 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
 unsigned int Shader::findUniform(std::string name)
 {
    int location = glGetUniformLocation(rendererId,name.c_str());
@@ -150,6 +156,91 @@ return sh;
 
 }
 
+Shader* ColMVPShader()
+{
+    std::string vertexShader = R"( 
+        #version 450 core
 
+        layout(location = 0) in vec3 aPos;
+        layout(location = 1) in vec4 aColor;
 
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
 
+        out vec4 ourColor;
+
+        void main()
+        {
+            gl_Position = projection * view * model * vec4(aPos, 1.0);
+            ourColor = aColor;
+        }
+    )";
+
+    std::string fragmentShader = R"( 
+        #version 450 core
+
+        in vec4 ourColor;
+        out vec4 FragColor;
+
+        void main()
+        {
+            FragColor = ourColor;
+        }
+    )";
+
+    return new Shader(vertexShader, fragmentShader);
+}
+
+Shader* ClippingObjectSpaceShader()
+{
+    std::string vertexShader = R"( 
+        #version 450 core
+
+        layout(location = 0) in vec3 aPos;
+        layout(location = 1) in vec4 aColor;
+
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
+        uniform vec4 mxPoz;
+        uniform vec4 mnPoz;
+
+        out vec4 ourColor;
+        out float clipMe;
+
+        void main()
+        {
+
+            clipMe = 0.0;
+            if (aPos.x < mnPoz.x || aPos.x > mxPoz.x ||
+                aPos.y < mnPoz.y || aPos.y > mxPoz.y ||
+                aPos.z < mnPoz.z || aPos.z > mxPoz.z)
+            {
+                clipMe = 1.0;
+            }
+
+            gl_Position = projection * view * model * vec4(aPos, 1.0);
+            ourColor = aColor;
+        }
+    )";
+
+    std::string fragmentShader = R"( 
+        #version 450 core
+
+        in vec4 ourColor;
+        in float clipMe;
+
+        out vec4 FragColor;
+
+        void main()
+        {
+            if (clipMe > 0.5)
+                discard;
+
+            FragColor = ourColor;
+        }
+    )";
+
+    return new Shader(vertexShader, fragmentShader);
+}

@@ -57,6 +57,7 @@ MOUSE_WHEEL_EVENT
 }EventType;
 
 
+//Eventuri preluate din SDL
 typedef struct WindowEvent
 {
     EventType type;
